@@ -1,5 +1,6 @@
 let DATA = null;
 let activeTabKey = null;
+let currentList = []; // cocktails currently rendered, each tagged with ._sheet
 const state = { search: '', ice: 'all', alc: 'all' };
 
 const LIGHT = ['하', '약', '중약', '중하'];
@@ -111,6 +112,14 @@ function getSheet() {
   return DATA.sheets.find((s) => s.key === activeTabKey);
 }
 
+function isSearching() {
+  return state.search.trim().length > 0;
+}
+
+function allCocktailsFlat() {
+  return DATA.sheets.flatMap((s) => s.cocktails.map((c) => ({ ...c, _sheet: s })));
+}
+
 function applyFilters(list) {
   const q = state.search.trim().toLowerCase();
   return list.filter((c) => {
@@ -124,41 +133,71 @@ function applyFilters(list) {
   });
 }
 
-function render() {
-  const sheet = getSheet();
-  const filtered = applyFilters(sheet.cocktails);
-  renderGroupIndex(sheet, filtered);
-  renderCards(sheet, filtered);
-  document.getElementById('emptyState').hidden = filtered.length > 0;
-}
-
-function orderedGroupsOf(sheet, filtered) {
-  const present = new Set(filtered.map((c) => c.group));
-  const ordered = [];
-  sheet.cocktails.forEach((c) => {
-    if (present.has(c.group) && !ordered.includes(c.group)) ordered.push(c.group);
+function firstAppearanceOrder(list, keyFn) {
+  const seen = new Set();
+  const order = [];
+  list.forEach((item) => {
+    const k = keyFn(item);
+    if (!seen.has(k)) { seen.add(k); order.push(k); }
   });
-  return ordered;
+  return order;
 }
 
-function renderGroupIndex(sheet, filtered) {
+function render() {
+  if (isSearching()) {
+    // search spans every category, not just the active tab
+    currentList = applyFilters(allCocktailsFlat());
+    renderByCategory(currentList);
+  } else {
+    const sheet = getSheet();
+    currentList = applyFilters(sheet.cocktails).map((c) => ({ ...c, _sheet: sheet }));
+    renderBySpiritGroup(currentList);
+  }
+  document.getElementById('emptyState').hidden = currentList.length > 0;
+  bindCardEvents();
+}
+
+function renderBySpiritGroup(list) {
+  const groupOrder = firstAppearanceOrder(list, (c) => c.group);
+  renderGroupIndex(groupOrder.map((g) => ({ id: g, label: g })));
+  renderSections(groupOrder.map((g) => ({
+    id: g,
+    title: g,
+    items: list.filter((c) => c.group === g),
+  })));
+}
+
+function renderByCategory(list) {
+  const sheetsByKey = Object.fromEntries(DATA.sheets.map((s) => [s.key, s]));
+  const keyOrder = firstAppearanceOrder(list, (c) => c._sheet.key);
+  renderGroupIndex(keyOrder.map((k) => ({
+    id: k,
+    label: `${sheetsByKey[k].emoji} ${sheetsByKey[k].label}`,
+  })));
+  renderSections(keyOrder.map((k) => ({
+    id: k,
+    title: `${sheetsByKey[k].emoji} ${sheetsByKey[k].label}`,
+    items: list.filter((c) => c._sheet.key === k),
+  })));
+}
+
+function renderGroupIndex(entries) {
   const nav = document.getElementById('groupIndex');
-  const groups = orderedGroupsOf(sheet, filtered);
-  if (groups.length <= 1) {
+  if (entries.length <= 1) {
     nav.innerHTML = '';
     nav.hidden = true;
     return;
   }
   nav.hidden = false;
-  nav.innerHTML = groups.map((g) =>
-    `<a href="#grp-${slug(g)}" class="group-pill">${escapeHTML(g)}</a>`
+  nav.innerHTML = entries.map((e) =>
+    `<a href="#grp-${slug(e.id)}" class="group-pill">${escapeHTML(e.label)}</a>`
   ).join('');
 }
 
-function cardHTML(c) {
+function cardHTML(c, idx) {
   const iceLabel = c.ice === 'o' ? '얼음 있음' : c.ice === 'x' ? '얼음 없음' : '';
   return `
-    <article class="cocktail-card" data-name="${escapeHTML(c.name)}" data-base="${escapeHTML(c.base || '')}" tabindex="0">
+    <article class="cocktail-card" data-idx="${idx}" tabindex="0">
       <div class="card-thumb"></div>
       <p class="card-base">${escapeHTML(c.base || '')}</p>
       <h3 class="card-name">${escapeHTML(c.name)}</h3>
@@ -170,33 +209,30 @@ function cardHTML(c) {
     </article>`;
 }
 
-function renderCards(sheet, filtered) {
+function renderSections(sections) {
   const main = document.getElementById('main');
-  if (filtered.length === 0) {
+  if (sections.length === 0 || sections.every((s) => s.items.length === 0)) {
     main.innerHTML = '';
     return;
   }
-  const groups = orderedGroupsOf(sheet, filtered);
-  main.innerHTML = groups.map((g) => {
-    const items = filtered.filter((c) => c.group === g);
-    return `
-      <section class="group-section" id="grp-${slug(g)}">
-        <h2 class="group-title"><span class="group-marker">▪</span> ${escapeHTML(g)} <span class="group-count">${items.length}종</span></h2>
-        <div class="card-grid">
-          ${items.map((c) => cardHTML(c)).join('')}
-        </div>
-      </section>`;
-  }).join('');
+  main.innerHTML = sections.map((sec) => `
+    <section class="group-section" id="grp-${slug(sec.id)}">
+      <h2 class="group-title"><span class="group-marker">▪</span> ${escapeHTML(sec.title)} <span class="group-count">${sec.items.length}종</span></h2>
+      <div class="card-grid">
+        ${sec.items.map((c) => cardHTML(c, currentList.indexOf(c))).join('')}
+      </div>
+    </section>`).join('');
+}
 
-  main.querySelectorAll('.cocktail-card').forEach((card) => {
-    const cocktail = sheet.cocktails.find(
-      (c) => c.name === card.dataset.name && (c.base || '') === card.dataset.base
-    );
+function bindCardEvents() {
+  document.querySelectorAll('.cocktail-card').forEach((card) => {
+    const idx = Number(card.dataset.idx);
+    const cocktail = currentList[idx];
     if (!cocktail) return;
 
-    mountThumb(card.querySelector('.card-thumb'), cocktail, sheet.key);
+    mountThumb(card.querySelector('.card-thumb'), cocktail, cocktail._sheet.key);
 
-    const open = () => openTicket(cocktail, sheet);
+    const open = () => openTicket(cocktail, cocktail._sheet);
     card.addEventListener('click', open);
     card.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
@@ -207,7 +243,7 @@ function renderCards(sheet, filtered) {
 function openTicket(c, sheet) {
   document.getElementById('ticketBase').textContent = c.base || '';
   document.getElementById('ticketName').textContent = c.name;
-  document.getElementById('ticketStamp').textContent = sheet.key.includes('IBA') ? 'IBA OFFICIAL' : 'RECIPE';
+  document.getElementById('pageNumber').textContent = String(c.page || 1).padStart(3, '0');
 
   mountThumb(document.getElementById('ticketThumb'), c, sheet.key);
 
@@ -216,23 +252,31 @@ function openTicket(c, sheet) {
   if (c.alcohol) badges.push(`<span class="badge badge-alc badge-alc-${bucketAlcohol(c.alcohol)}">${escapeHTML(c.alcohol)}</span>`);
   document.getElementById('ticketBadges').innerHTML = badges.join('');
 
-  const lines = (c.recipe || '').split(',').map((s) => s.trim()).filter(Boolean);
-  document.getElementById('ticketRecipe').innerHTML =
-    lines.length ? lines.map((l) => `<li>${escapeHTML(l)}</li>`).join('') : '<li>레시피 정보 없음</li>';
+  document.getElementById('ticketStory').textContent = c.story || c.feature || '';
 
-  const featureEl = document.getElementById('ticketFeature');
-  featureEl.textContent = c.feature || '';
-  featureEl.hidden = !c.feature;
+  document.getElementById('ticketGlass').textContent = c.glass_type || '';
 
-  const extraEl = document.getElementById('ticketExtra');
-  extraEl.textContent = c.extra ? `※ ${c.extra}` : '';
-  extraEl.hidden = !c.extra;
+  const ingredients = c.ingredients_list && c.ingredients_list.length
+    ? c.ingredients_list
+    : (c.recipe || '').split(',').map((s) => s.trim()).filter(Boolean);
+  document.getElementById('ticketIngredients').innerHTML =
+    ingredients.length ? ingredients.map((l) => `<li>${escapeHTML(l)}</li>`).join('') : '<li>정보 없음</li>';
+
+  const directions = c.directions && c.directions.length ? c.directions : [c.recipe || ''];
+  document.getElementById('ticketDirections').innerHTML =
+    directions.map((d) => `<li>${escapeHTML(d)}</li>`).join('');
+
+  const tipEl = document.getElementById('ticketTip');
+  tipEl.textContent = c.tip ? `※ ${c.tip}` : '';
+  tipEl.hidden = !c.tip;
 
   const photoUrl = c.link || `https://www.google.com/search?q=${encodeURIComponent(c.name + ' cocktail')}&tbm=isch`;
   document.getElementById('ticketPhoto').href = photoUrl;
   document.getElementById('ticketHintName').textContent = c.name;
 
-  document.getElementById('modalBackdrop').classList.add('open');
+  const backdrop = document.getElementById('modalBackdrop');
+  backdrop.classList.add('open');
+  backdrop.scrollTop = 0; // always open scrolled to the top of the ticket
 }
 
 function closeTicket() {
@@ -270,11 +314,41 @@ function bindStaticEvents() {
   });
 
   document.getElementById('randomBtn').addEventListener('click', () => {
-    const all = DATA.sheets.flatMap((s) => s.cocktails.map((c) => ({ ...c, _sheetKey: s.key })));
+    const all = allCocktailsFlat();
     if (!all.length) return;
     const pick = all[Math.floor(Math.random() * all.length)];
-    const sheet = DATA.sheets.find((s) => s.key === pick._sheetKey);
-    setActiveTab(pick._sheetKey);
-    setTimeout(() => openTicket(pick, sheet), 80);
+    setActiveTab(pick._sheet.key);
+    setTimeout(() => openTicket(pick, pick._sheet), 80);
   });
+
+  document.getElementById('qrOpenBtn').addEventListener('click', openQrModal);
+  document.getElementById('qrClose').addEventListener('click', closeQrModal);
+  document.getElementById('qrBackdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'qrBackdrop') closeQrModal();
+  });
+}
+
+function openQrModal() {
+  const menuUrl = `${window.location.origin}/menu.html`;
+  document.getElementById('qrUrl').textContent = menuUrl;
+
+  const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+  document.getElementById('qrWarn').hidden = !isLocalhost;
+
+  const canvas = document.getElementById('qrCanvas');
+  canvas.innerHTML = '';
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(menuUrl);
+    qr.make();
+    canvas.innerHTML = qr.createSvgTag(6, 8);
+  } catch (e) {
+    canvas.innerHTML = '<p style="color:#a13030;font-size:.8rem;">QR코드를 만들 수 없어요.</p>';
+  }
+
+  document.getElementById('qrBackdrop').classList.add('open');
+}
+
+function closeQrModal() {
+  document.getElementById('qrBackdrop').classList.remove('open');
 }

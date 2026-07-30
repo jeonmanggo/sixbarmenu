@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>칵테일 레시피북 — 메뉴판</title>
+<title>Six Bar' Recipe Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Brush+Script&family=Noto+Serif+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,9 +14,10 @@
 <header class="hero">
   <div class="hero-inner">
     <p class="eyebrow">PRIVATE BAR LEDGER</p>
-    <h1 class="hero-title">칵테일 레시피북</h1>
+    <h1 class="hero-title">Six Bar' Recipe Book</h1>
     <p class="hero-sub">기주별로 정리한 <span id="statTotal">0</span>종의 레시피</p>
     <div class="hero-stats" id="heroStats"></div>
+    <button class="qr-open-btn" id="qrOpenBtn">📱 손님 메뉴 QR코드 보기</button>
   </div>
 </header>
 
@@ -46,21 +50,55 @@
 <p class="result-empty" id="emptyState" hidden>검색 결과가 없어요. 다른 키워드로 찾아보세요.</p>
 
 <div class="modal-backdrop" id="modalBackdrop">
-  <div class="ticket" id="ticket">
+  <div class="book-spread" id="ticket">
     <button class="ticket-close" id="ticketClose" aria-label="닫기">×</button>
-    <div class="ticket-stamp" id="ticketStamp">RECIPE</div>
-    <div class="ticket-thumb" id="ticketThumb"></div>
-    <p class="ticket-base" id="ticketBase"></p>
-    <h2 class="ticket-name" id="ticketName"></h2>
-    <div class="ticket-badges" id="ticketBadges"></div>
-    <div class="ticket-divider"></div>
-    <ul class="ticket-recipe" id="ticketRecipe"></ul>
-    <p class="ticket-feature" id="ticketFeature"></p>
-    <p class="ticket-extra" id="ticketExtra"></p>
-    <div class="ticket-photo-row">
-      <a class="ticket-photo" id="ticketPhoto" target="_blank" rel="noopener">🔍 구글에서 사진 찾아보기</a>
-      <p class="ticket-photo-hint">찾은 사진을 저장해서 images 폴더에 "<span id="ticketHintName"></span>.jpg"로 넣으면 자동으로 표시돼요</p>
+
+    <div class="page page-right">
+      <div class="ticket-thumb" id="ticketThumb"></div>
     </div>
+
+    <div class="page page-left">
+      <div class="page-number" id="pageNumber">001</div>
+      <p class="page-base" id="ticketBase"></p>
+      <h2 class="page-title" id="ticketName"></h2>
+      <div class="page-badges" id="ticketBadges"></div>
+
+      <p class="page-story" id="ticketStory"></p>
+
+      <div class="page-meta">
+        <div class="meta-col meta-glass">
+          <h3>GLASS TYPE</h3>
+          <p id="ticketGlass"></p>
+        </div>
+        <div class="meta-col meta-ingredients">
+          <h3>INGREDIENTS</h3>
+          <ul id="ticketIngredients"></ul>
+        </div>
+      </div>
+
+      <div class="page-directions">
+        <h3>DIRECTIONS</h3>
+        <ol id="ticketDirections"></ol>
+      </div>
+
+      <p class="page-tip" id="ticketTip"></p>
+
+      <div class="ticket-photo-row">
+        <a class="ticket-photo" id="ticketPhoto" target="_blank" rel="noopener">🔍 구글에서 사진 찾아보기</a>
+        <p class="ticket-photo-hint">찾은 사진을 저장해서 images 폴더에 "<span id="ticketHintName"></span>.jpg"로 넣으면 자동으로 표시돼요</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="qrBackdrop">
+  <div class="qr-modal" id="qrModal">
+    <button class="ticket-close" id="qrClose" aria-label="닫기">×</button>
+    <h2 class="qr-title">손님 메뉴 QR코드</h2>
+    <div id="qrCanvas" class="qr-canvas"></div>
+    <p class="qr-url" id="qrUrl"></p>
+    <p class="qr-hint">손님이 같은 와이파이에서 폰 카메라로 스캔하면 메뉴판이 바로 열려요.</p>
+    <p class="qr-warn" id="qrWarn" hidden>⚠️ 지금 localhost로 접속 중이에요. 손님 폰에서 스캔이 되려면, 이 컴퓨터의 내부 IP 주소(예: 192.168.0.15:8080)로 직접 접속한 다음 다시 눌러주세요.</p>
   </div>
 </div>
 
@@ -68,6 +106,7 @@
   <p>개인 레시피북을 기반으로 생성된 로컬 메뉴판입니다.</p>
 </footer>
 
+<script src="qrcode.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

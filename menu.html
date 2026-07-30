@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Six Bar' — 메뉴</title>
+<link rel="stylesheet" href="menu.css">
+</head>
+<body>
+
+<header class="m-hero">
+  <p class="m-eyebrow">SIX BAR'</p>
+  <h1 class="m-title">오늘의 칵테일</h1>
+  <p class="m-sub">마음에 드는 한 잔을 골라보세요</p>
+</header>
+
+<nav class="m-tabs" id="mTabs"></nav>
+
+<main id="mMain"></main>
+
+<button class="m-myorders-btn" id="myOrdersBtn">🥃 내가 마신 칵테일 <span id="myOrdersCount">0</span></button>
+
+<div class="m-modal-backdrop" id="mModalBackdrop">
+  <div class="m-modal" id="mModal">
+    <button class="m-modal-close" id="mModalClose" aria-label="닫기">×</button>
+    <p class="m-modal-base" id="mDetailBase"></p>
+    <h2 class="m-modal-name" id="mDetailName"></h2>
+    <div class="m-modal-thumb" id="mDetailThumb"></div>
+    <p class="m-modal-story" id="mDetailStory"></p>
+    <div class="m-modal-ing">
+      <h3>들어가는 재료</h3>
+      <p id="mDetailIngredients"></p>
+    </div>
+    <button class="m-order-btn" id="mOrderBtn">이거 시켰어요</button>
+  </div>
+</div>
+
+<div class="m-modal-backdrop" id="myOrdersBackdrop">
+  <div class="m-modal m-orders-modal">
+    <button class="m-modal-close" id="myOrdersClose" aria-label="닫기">×</button>
+    <h2 class="m-modal-name">내가 마신 칵테일</h2>
+    <ul class="m-orders-list" id="myOrdersList"></ul>
+    <p class="m-orders-empty" id="myOrdersEmpty" hidden>아직 마신 칵테일이 없어요.</p>
+    <button class="m-orders-clear" id="myOrdersClear">목록 비우기</button>
+  </div>
+</div>
+
+<footer class="m-footer">
+  <p>Six Bar'에서 즐거운 시간 보내세요 🍸</p>
+</footer>
+
+<script src="menu.js"></script>
+</body>
+</html>
